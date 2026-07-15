@@ -1,0 +1,58 @@
+name: Deploy to HuggingFace Space
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Install Git LFS
+        run: git lfs install
+
+      - name: Prepare clean copy for HuggingFace
+        run: |
+          git config --global user.email "deploy@github.com"
+          git config --global user.name "GitHub Actions"
+          git config --global init.defaultBranch main
+          cp -r . /tmp/hf-deploy
+          cd /tmp/hf-deploy
+          rm -rf others/ .git .github main.py
+          cat > requirements.txt << 'EOF'
+          numpy
+          matplotlib
+          gradio
+          pillow
+          EOF
+          cat > README.md << 'EOF'
+          ---
+          title: Autonomous Volcanic Terrain Explorer
+          emoji: 🌋
+          colorFrom: red
+          colorTo: yellow
+          sdk: gradio
+          sdk_version: "5.23.0"
+          app_file: app.py
+          pinned: false
+          ---
+          EOF
+
+      - name: Push to HuggingFace Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          cd /tmp/hf-deploy
+          git init
+          git add .
+          git commit -m "Deploy from GitHub"
+          git remote add hf https://rafidzenn:$HF_TOKEN@huggingface.co/spaces/rafidzenn/Autonomous-Volcanic-Terrain-Explorer
+          git push hf main --force
